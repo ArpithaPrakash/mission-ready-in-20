@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """
-conop_rag_generator.py
+generate_draw.py
+
+User Guide:
+1. Update DPB_CONN with your PostgreSQL credentials.
+2. Call export OLLAMA_API_KEY="API_KEY_HERE" to set your Ollama Cloud API key.
+3. Run this script with "python generate_draw.py"to ingest training data and generate DRAW outputs.
+4. I've currently set it to generate DRAW for "0269-drivers-training-conop-conop.json" as an example.
+5. The draw json will be saved to "draw_output.json".
 
 Pipeline:
 1. Reads all merged CONOP→DRAW JSON files from merged_conop_draws/.
@@ -16,12 +23,9 @@ Pipeline:
 
 import os
 import json
-from urllib import response
 import psycopg2
 from psycopg2.extras import Json
 from sentence_transformers import SentenceTransformer
-import requests
-from openai import OpenAI
 from ollama import Client
 
 # ===========================
