@@ -112,11 +112,13 @@ The `conops-to-draw-main/` directory contains the React/Vite frontend that inter
    ```bash
    brew install --cask libreoffice
    ```
-3. (Required for DRAW previews) Ensure PyMuPDF is installed. It is already listed in `requirements.txt`, but if you skip the bundled requirements install for any reason run:
-   ```bash
-   pip install pymupdf
-   ```
-   The backend uses PyMuPDF to rasterize a separate `*-preview.pdf` copy of each generated DRAW so the React iframe shows filled text even in read-only viewers.
+3. (Required for DRAW previews) Ensure PyMuPDF and LibreOffice are installed.
+
+   - **LibreOffice**: Used to convert the filled DOCX template into a PDF preview that mimics the official DD2977 form.
+   - **PyMuPDF**: Used as a fallback to generate a summary PDF if the DOCX conversion fails.
+
+   The backend generates a preview by filling a Word document template (`dd2977.docx`) and converting it to PDF. This ensures the preview in the browser looks like the actual form.
+
 4. Ensure PostgreSQL with the pgvector extension is available (the project uses a Docker-hosted instance listening on `localhost:5432`). Stop any Homebrew Postgres service so it does not compete for the port:
    ```bash
    brew services stop postgresql@14 2>/dev/null
@@ -135,8 +137,8 @@ The `conops-to-draw-main/` directory contains the React/Vite frontend that inter
    export DB_HOST=localhost DB_PORT=5432 DB_NAME=mrit_db DB_USER=arpithaprakash DB_PASSWORD=MRI-20
    ```
 7. The `/api/conops/upload` endpoint accepts a `.pptx` file, stores it, parses it via `parse_conop.py`, converts it to PDF for preview, and (when the prerequisites above are met) generates a DRAW JSON by calling the Ollama-assisted `generate_draw.py` pipeline. Each successful `/api/conops/generate-draw` call writes two PDFs into `generated_draws/`:
-   - `<deck>-draw-<uuid>.pdf` — the editable DD 2977 with live form fields, used for downloads/exports.
-   - `<deck>-draw-<uuid>-preview.pdf` — a PyMuPDF-rendered copy baked to page graphics, used exclusively by the React preview iframe to ensure filled content appears in every browser.
+   - `<deck>-draw-<uuid>.pdf` — the editable DD 2977 (XFA format) with live form fields, used for downloads/exports.
+   - `<deck>-draw-<uuid>-preview.pdf` — a visual preview generated from a DOCX template, used by the React frontend to display the form content.
 
 #### Daily Backend Run (Quick Start)
 
@@ -202,7 +204,9 @@ Run through this checklist whenever you need to verify the full stack:
    npm run dev
    ```
 
-3. **Manual verification:** open the Vite URL (default `http://localhost:8080`), upload a `.pptx`, confirm the progress tracker moves to Step 2, the CONOPS PDF preview appears once LibreOffice finishes, and the AI-generated DRAW populates the right-hand panel (progress advances to Step 3). Use the Export button to download the generated draft and review it locally.
+3. **Manual verification:** open the Vite URL (default `http://localhost:8080`), upload a `.pptx`, confirm the progress tracker moves to Step 2, the CONOPS PDF preview appears once LibreOffice finishes, and the AI-generated DRAW populates the right-hand panel (progress advances to Step 3).
+   - **Confidence Score**: Verify the "AI Confidence" banner appears at the top, showing a score (0-100) and a rationale for the assessment.
+   - **Export**: Use the Export button to download the generated draft (XFA PDF) and review it locally.
 
 ## Outputs
 

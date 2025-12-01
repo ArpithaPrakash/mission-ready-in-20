@@ -1,12 +1,18 @@
 import json
 import re
 import shutil
+import subprocess
 from pathlib import Path
 from copy import deepcopy
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Optional
 
 import pikepdf
+import fitz  # PyMuPDF
 from lxml import etree as ET
+try:
+    from docx import Document
+except ImportError:
+    Document = None
 
 # ============================================================
 # Paths
@@ -14,6 +20,7 @@ from lxml import etree as ET
 BASE_DIR = Path(__file__).resolve().parent
 
 PDF_IN = BASE_DIR / "dd2977.pdf"
+DOCX_IN = Path(__file__).parent / "dd2977.docx"
 PDF_OUT = BASE_DIR / "dd2977_filled.pdf"
 JSON_IN = BASE_DIR / "input_draw.json"
 
@@ -232,14 +239,212 @@ def generate_draw_pdf(data: Dict[str, Any], output_path: Union[str, Path]):
     finally:
         pdf.close()
 
-def render_preview_pdf(input_path: Union[str, Path], output_path: Union[str, Path]):
+def fill_docx_template(docx_path: Path, output_pdf_path: Path, data: Dict[str, Any]):
+    if Document is None:
+        raise RuntimeError("python-docx not installed")
+        
+    doc = Document(docx_path)
+    table = doc.tables[0]
+    
+    def set_cell(r, c, text, label=None):
+        try:
+            cell = table.rows[r].cells[c]
+            # If label=True, we append to existing text (assuming label is there)
+            # For this specific form, we just append a newline + value
+            if label and cell.paragraphs:
+                p = cell.paragraphs[-1]
+                run = p.add_run(f" {text}")
+                run.bold = True
+            else:
+                cell.text = text
+        except IndexError:
+            pass # Row/Col doesn't exist
+
+    def insert_row_after(ref_row_idx, row_to_copy_idx):
+        """
+        Copy the row at `row_to_copy_idx` and insert it after `ref_row_idx`.
+        """
+        ref_row = table.rows[ref_row_idx]
+        copy_src = table.rows[row_to_copy_idx]
+        new_xml = deepcopy(copy_src._element)
+        ref_row._element.addnext(new_xml)
+
+    # Header
+    set_cell(1, 0, data.get("mission_task_and_description", ""), label=True)
+    set_cell(1, 13, data.get("date", ""), label=True)
+    
+    prep = data.get("prepared_by") or {}
+    set_cell(3, 0, prep.get("name_last_first_middle_initial", ""), label=True)
+    set_cell(3, 7, prep.get("rank_grade", ""), label=True)
+    set_cell(3, 11, prep.get("duty_title_position", ""), label=True)
+    set_cell(4, 0, prep.get("unit", ""), label=True)
+    set_cell(4, 2, prep.get("work_email", ""), label=True)
+    set_cell(4, 9, prep.get("telephone", ""), label=True)
+    set_cell(5, 0, prep.get("uic_cin", ""), label=True)
+    set_cell(5, 2, prep.get("training_support_or_lesson_plan_or_opord", ""), label=True)
+
+    # Risks (Dynamic Rows)
+    subtasks = data.get("subtasks") or []
+    
+    # Template rows are at index 8 (Main) and 9 (Who)
+    # We track the index of the last used "Who" row
+    last_who_row_idx = 9
+    
+    for i, st in enumerate(subtasks):
+        if i == 0:
+            # Use the existing template rows
+            curr_main_idx = 8
+            curr_who_idx = 9
+        else:
+            # Insert new pair of rows after the last "Who" row
+            # We insert them in reverse order so they end up: Main, Who
+            
+            # 1. Insert copy of Row 9 (Who) after last_who_row_idx
+            insert_row_after(last_who_row_idx, 9)
+            # 2. Insert copy of Row 8 (Main) after last_who_row_idx
+            insert_row_after(last_who_row_idx, 8)
+            
+            # Update indices
+            curr_main_idx = last_who_row_idx + 1
+            curr_who_idx = last_who_row_idx + 2
+            last_who_row_idx += 2
+
+        # Fill the rows
+        subtask_info = st.get('subtask') or {}
+        set_cell(curr_main_idx, 1, subtask_info.get('name', ''))
+        set_cell(curr_main_idx, 3, st.get('hazard', ''))
+        set_cell(curr_main_idx, 5, st.get('initial_risk_level', ''))
+        
+        control_info = st.get("control") or {}
+        ctrls = control_info.get("values", [])
+        ctrl_text = "\n".join(ctrls) if isinstance(ctrls, list) else str(ctrls)
+        set_cell(curr_main_idx, 8, ctrl_text)
+        
+        how_impl = st.get("how_to_implement") or {}
+        how_info = how_impl.get("how") or {}
+        how = how_info.get("values", [])
+        how_text = "\n".join(how) if isinstance(how, list) else str(how)
+        set_cell(curr_main_idx, 12, how_text)
+        
+        who_info = how_impl.get("who") or {}
+        who = who_info.get("values", [])
+        who_text = "\n".join(who) if isinstance(who, list) else str(who)
+        set_cell(curr_who_idx, 12, who_text)
+        
+        set_cell(curr_main_idx, 14, st.get('residual_risk_level', ''))
+
+    # Overall Risk (Find the row index, as it has shifted)
+    # It was originally Row 10. It is now after the last_who_row_idx.
+    overall_row_idx = last_who_row_idx + 1
+    overall = data.get("overall_residual_risk_level", "").upper()
+    set_cell(overall_row_idx, 0, f"  {overall}", label=True)
+
+    # Save to temp docx
+    temp_docx = output_pdf_path.with_suffix(".temp.docx")
+    doc.save(temp_docx)
+    
+    # Convert to PDF using LibreOffice
+    # Assumes 'soffice' is on PATH (which api_server checks)
+    try:
+        subprocess.run(
+            ["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(output_pdf_path.parent), str(temp_docx)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        # LibreOffice saves as temp.pdf
+        temp_pdf = output_pdf_path.with_suffix(".temp.pdf")
+        if temp_pdf.exists():
+            shutil.move(temp_pdf, output_pdf_path)
+        else:
+            # Fallback if name is different
+            pass
+    except Exception as e:
+        print(f"DOCX conversion failed: {e}")
+    finally:
+        if temp_docx.exists():
+            temp_docx.unlink()
+
+def render_preview_pdf(input_path: Union[str, Path], output_path: Union[str, Path], data: Optional[Dict[str, Any]] = None):
     """
-    Creates a preview version of the PDF. 
-    For now, this simply copies the file.
+    Creates a preview version of the PDF.
+    If DOCX_IN exists, fills it and converts to PDF.
+    Else if 'data' is provided, generates a summary PDF using PyMuPDF.
+    Else, falls back to copying the XFA file.
     """
     input_path = Path(input_path)
     output_path = Path(output_path)
-    shutil.copy2(input_path, output_path)
+
+    # Try DOCX template first
+    if DOCX_IN.exists() and data and Document:
+        try:
+            fill_docx_template(DOCX_IN, output_path, data)
+            if output_path.exists():
+                return
+        except Exception as e:
+            print(f"DOCX template filling failed: {e}")
+
+    if not data:
+        shutil.copy2(input_path, output_path)
+        return
+
+    # Generate a summary PDF (Fallback)
+    doc = fitz.open()
+    page = doc.new_page()
+    
+    # Helper to write text
+    y = 50
+    line_height = 14
+    margin = 50
+    
+    def write_line(text, size=11, bold=False):
+        nonlocal y, page
+        # Use default font to avoid loading issues
+        page.insert_text((margin, y), str(text), fontsize=size)
+        y += line_height
+        if y > 800:
+            page = doc.new_page()
+            y = 50
+
+    write_line("DD2977 CONTENT PREVIEW", size=16, bold=True)
+    y += 10
+    write_line("(This is a generated summary. Download the file to view the official XFA form.)", size=10)
+    y += 20
+
+    # Header Info
+    write_line(f"Mission/Task: {data.get('mission_task_and_description', 'N/A')}", bold=True)
+    write_line(f"Date: {data.get('date', 'N/A')}")
+    
+    prep = data.get("prepared_by", {})
+    write_line(f"Prepared By: {prep.get('name_last_first_middle_initial', 'N/A')} ({prep.get('rank_grade', '')})")
+    write_line(f"Unit: {prep.get('unit', 'N/A')}")
+    y += 10
+
+    # Risk Assessment
+    write_line("RISK ASSESSMENT:", size=12, bold=True)
+    y += 5
+
+    for i, subtask in enumerate(data.get("subtasks", []), 1):
+        st_name = (subtask.get("subtask") or {}).get("name", "Unknown Subtask")
+        write_line(f"{i}. Subtask: {st_name}", bold=True)
+        
+        haz = subtask.get("hazard", "N/A")
+        write_line(f"   Hazard: {haz}")
+        
+        ctrl = (subtask.get("control") or {}).get("values", [])
+        ctrl_text = "; ".join(ctrl) if isinstance(ctrl, list) else str(ctrl)
+        write_line(f"   Controls: {ctrl_text}")
+        
+        risk = subtask.get("residual_risk_level", "N/A")
+        write_line(f"   Residual Risk: {risk}")
+        y += 10
+
+    # Overall Risk
+    overall = data.get("overall_residual_risk_level", "N/A")
+    write_line(f"OVERALL RESIDUAL RISK LEVEL: {overall}", size=12, bold=True)
+
+    doc.save(output_path)
+    doc.close()
 
 # ============================================================
 # CLI Entrypoint

@@ -228,7 +228,7 @@ async def generate_draw_endpoint(payload: GenerateDrawRequest, request: Request)
                 draw_pdf_url = f"/generated_draws/{pdf_filename}"
 
             try:
-                await run_in_threadpool(render_preview_pdf, pdf_path, preview_path)
+                await run_in_threadpool(render_preview_pdf, pdf_path, preview_path, draw_payload)
             except Exception as exc:
                 logger.warning("DRAW preview rendering failed for %s: %s", payload.filename, exc)
             else:

@@ -17,6 +17,11 @@ export interface GenerateDrawResponse {
   draw_error?: string | null;
   draw_pdf_url: string | null;
   draw_pdf_preview_url: string | null;
+  ai_assessment?: {
+    confidence_score: number;
+    areas_for_review: string[];
+    rationale?: string;
+  } | null;
 }
 
 export interface ConvertPreviewResponse {

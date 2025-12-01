@@ -7,6 +7,7 @@ import ConopsViewer from "@/components/ConopsViewer";
 import DrawDraftPanel, { DrawStatus } from "@/components/DrawDraftPanel";
 import ActionBar from "@/components/ActionBar";
 import { convertConopToPdf, generateDraw, uploadConop } from "@/lib/api";
+import { ConfidenceBanner } from "@/components/ConfidenceBanner";
 
 const Index = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -20,6 +21,8 @@ const Index = () => {
   const [drawError, setDrawError] = useState<string | null>(null);
   const [drawPdfUrl, setDrawPdfUrl] = useState<string | null>(null);
   const [drawPreviewPdfUrl, setDrawPreviewPdfUrl] = useState<string | null>(null);
+  const [aiAssessment, setAiAssessment] = useState<{ confidence_score: number; areas_for_review: string[]; rationale?: string } | null>(null);
+  const [showConfidenceBanner, setShowConfidenceBanner] = useState(false);
   const localPreviewRef = useRef<string | null>(null);
   const conversionJobRef = useRef(0);
 
@@ -95,6 +98,12 @@ const Index = () => {
           setDrawPreviewPdfUrl(drawResult.draw_pdf_preview_url ?? null);
           setDrawStatus("ready");
           setCurrentStep(3);
+          
+          if (drawResult.draw && (drawResult.draw as any).ai_assessment) {
+            setAiAssessment((drawResult.draw as any).ai_assessment);
+            setShowConfidenceBanner(true);
+          }
+          
           toast.success("AI-generated DRAW is ready");
         } else {
           const errorMessage = drawResult.draw_error ?? "Unable to generate DRAW";
@@ -234,6 +243,16 @@ const Index = () => {
           />
         </div>
       </main>
+
+      {aiAssessment && (
+        <ConfidenceBanner
+          isOpen={showConfidenceBanner}
+          onOpenChange={setShowConfidenceBanner}
+          score={aiAssessment.confidence_score}
+          reviewAreas={aiAssessment.areas_for_review}
+          rationale={aiAssessment.rationale}
+        />
+      )}
     </div>
   );
 };

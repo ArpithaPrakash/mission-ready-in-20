@@ -230,6 +230,11 @@ def build_prompt(context_pairs, new_conop):
         "\n\n=== NEW CONOP ===\n"
         f"{json.dumps(new_sections, indent=2)}\n\n"
         "Now output the complete DRAW JSON.\n"
+        "IMPORTANT: You MUST include a top-level field 'ai_assessment' with:\n"
+        "1. 'confidence_score' (integer 0-100) indicating your confidence in the risk assessment.\n"
+        "2. 'areas_for_review' (list of strings) indicating specific subtasks or hazards that might need human verification.\n"
+        "3. 'rationale' (string) explaining why these areas were flagged and the reasoning behind the confidence score.\n"
+        "Ensure the JSON structure matches the training examples but includes this new field."
     )
 
     return prompt
