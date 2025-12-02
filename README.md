@@ -146,7 +146,7 @@ The `conops-to-draw-main/` directory contains the React/Vite frontend that inter
 After completing the one-time setup, an end-to-end test session only needs three commands:
 
 ```bash
-cd /Users/arpithaprakash/mission-ready-in-20
+cd /Users/username/mission-ready-in-20
 source env.sh          # activates .venv and exports OLLAMA_API_KEY/DB_*
 pip install -r requirements.txt
 python generate_draw.py
@@ -186,10 +186,10 @@ Run through this checklist whenever you need to verify the full stack:
 
 1. **Backend prerequisites (run once per shell):**
    ```bash
-   cd /Users/arpithaprakash/mission-ready-in-20
+   cd /Users/username/mission-ready-in-20
    source .venv/bin/activate
-   export PGHOST=localhost PGPORT=5432 PGUSER=arpithaprakash PGPASSWORD=MRI-20
-   export DB_HOST=localhost DB_PORT=5432 DB_NAME=mrit_db DB_USER=arpithaprakash DB_PASSWORD=MRI-20
+   export PGHOST=localhost PGPORT=5432 PGUSER=username PGPASSWORD=MRI-20
+   export DB_HOST=localhost DB_PORT=5432 DB_NAME=mrit_db DB_USER=username DB_PASSWORD=MRI-20
    psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d mrit_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
    python generate_draw.py
    export OLLAMA_API_KEY=9f4e1f135c35424f82fde6596ae12569.krawhX9x4C3ua3Qn2snMmucQ
