@@ -1,19 +1,32 @@
-PyMuPDF>=1.23.0
-pdfminer.six>=20221105
-python-pptx>=0.6.21
+# === PDF + XFA + DOCX Handling ===
 pikepdf>=8.0.0
+PyMuPDF>=1.23.0
+python-docx>=1.0.0
 lxml>=4.9.0
-pytesseract>=0.3.10
-pdf2image>=1.17.0
-Pillow>=9.5.0
+pdfminer.six>=20221105
 PyPDF2>=3.0.0
+Pillow>=9.5.0
+pdf2image>=1.17.0
 pycryptodome>=3.20.0
 
-psycopg2-binary>=2.9.0
+# === OCR (optional but used by some steps) ===
+pytesseract>=0.3.10
+
+# === PPTX Parsing ===
+python-pptx>=0.6.21
+
+# === Backend / API ===
 fastapi>=0.111.0
 uvicorn[standard]>=0.30.0
 python-multipart>=0.0.9
 pydantic>=2.7.0
+psycopg2-binary>=2.9.0
+
+# === AI / Embeddings ===
 sentence-transformers>=2.6.1
+transformers>=4.37.0
+torch>=2.1.0
 ollama>=0.1.7
-pymupdf
+
+# === Utility ===
+requests>=2.31.0
