@@ -75,14 +75,18 @@ Use the merging script to combine CONOPS and DRAW JSON files from the same direc
    - In `psql` (execute `sudo -u postgres psql`):
      ```sql
      CREATE DATABASE mrit_db OWNER "username";
+     ```
+     ```sql
      \c mrit_db
+     ```
+     ```sql
      CREATE TABLE merged_conops_draws (
          id SERIAL PRIMARY KEY,
          source_directory_id TEXT NOT NULL,
          merged_data JSONB NOT NULL
      );
      ```
-3. Export the database environment variables used by the scripts (or copy `env.sh.example` to `env.sh` and fill in your credentials):
+3. Export the database environment variables used by the scripts (or copy `env.sh.example` to `env.sh` and fill in your credentials) RUN THE BELOW COMMANDS IN BASH NOT THE POSTGRES SQL TERMINAL:
    ```bash
    export DB_HOST=localhost
    export DB_PORT=5432
