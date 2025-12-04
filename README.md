@@ -101,8 +101,10 @@ Use the merging script to combine CONOPS and DRAW JSON files from the same direc
 5. Verify upload in `psql`:
    - In `psql` (execute `psql postgres`):
    ```sql
+   \c mrit_db
+   ```
+   ```sql
    SELECT COUNT(*) FROM merged_conops_draws;
-   SELECT * FROM merged_conops_draws LIMIT 1;
    ```
 
 ## Web Application
