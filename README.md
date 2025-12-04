@@ -118,7 +118,8 @@ The `conops-to-draw-main/` directory contains the React/Vite frontend that inter
 1. Install Python dependencies as described above.
 2. (Required for inline CONOPS previews) Install LibreOffice so the backend can convert PPTX files to PDF:
    ```bash
-   brew install --cask libreoffice
+   sudo apt update
+   sudo apt install libreoffice -y
    ```
 3. (Required for DRAW previews) Ensure PyMuPDF and LibreOffice are installed.
 
